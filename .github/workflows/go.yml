@@ -1,0 +1,68 @@
+# .github/workflows/go.yml
+name: Go CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - stage
+      - release/*
+  pull_request:
+    branches:
+      - main
+      - dev
+      - stage
+      - release/*
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25.3'   
+          
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+        continue-on-error: true
+
+      - name: Make build dir 
+        run: mkdir -p build
+
+      - name: Build binary
+        run: go build -o build/app ./cmd
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantive
+          path: build/
