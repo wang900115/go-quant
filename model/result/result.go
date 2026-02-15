@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/wang900115/quant/external"
 	"github.com/wang900115/quant/model"
 )
 
@@ -181,4 +182,30 @@ func (sr *StrategyHybridResult) JSONMarshall() string {
 		return ""
 	}
 	return buf.String()
+}
+
+func BuildMessage(r interface{}) *external.Message {
+	switch res := r.(type) {
+	case *StrategyGeneralResult:
+		return &external.Message{
+			Title:   fmt.Sprintf("Strategy Triggered: %s", res.StrategyName),
+			Content: res.JSONMarshall(),
+			Level:   external.Info,
+			Times:   time.Now(),
+		}
+	case *StrategyHybridResult:
+		return &external.Message{
+			Title:   fmt.Sprintf("Strategy Triggered: %s", res.StrategyName),
+			Content: res.JSONMarshall(),
+			Level:   external.Info,
+			Times:   time.Now(),
+		}
+	default:
+		return &external.Message{
+			Title:   "Unknown Strategy Result",
+			Content: "Received an unknown type of strategy result",
+			Level:   external.Warn,
+			Times:   time.Now(),
+		}
+	}
 }
