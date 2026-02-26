@@ -4,16 +4,22 @@ import (
 	"github.com/wang900115/quant/exchange/binance"
 	"github.com/wang900115/quant/exchange/coinbase"
 	"github.com/wang900115/quant/exchange/okx"
+	"github.com/wang900115/quant/external"
 	"github.com/wang900115/quant/stoploss/engine"
 )
 
 type Config struct {
 	// Strategy configurations
 	Engine engine.Config
+
 	// Exchange configurations
 	Binance  binance.BinanceConfig
 	Coinbase coinbase.CoinbaseConfig
 	Okx      okx.OkxConfig
+
+	// Notification bot configurations
+	Discord  external.Credentials
+	Telegram external.Credentials
 }
 
 type configOpts func(c *Config)
@@ -45,5 +51,17 @@ func (c *Config) WithCoinbase(opt coinbase.CoinbaseConfig) configOpts {
 func (c *Config) WithOkx(opt okx.OkxConfig) configOpts {
 	return func(c *Config) {
 		c.Okx = opt
+	}
+}
+
+func (c *Config) XDiscord(opt external.Credentials) configOpts {
+	return func(c *Config) {
+		c.Discord = opt
+	}
+}
+
+func (c *Config) XTelegram(opt external.Credentials) configOpts {
+	return func(c *Config) {
+		c.Telegram = opt
 	}
 }
