@@ -2,18 +2,29 @@ package pebble
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/wang900115/quant/storage"
 )
 
+func NewDatabase(path string) (*Database, error) {
+	db, err := pebble.Open(path, &pebble.Options{})
+	if err != nil {
+		return nil, err
+	}
+	return &Database{
+		db:           db,
+		writeOptions: pebble.Sync,
+	}, nil
+}
+
 type Database struct {
 	db *pebble.DB
 
 	quitLock sync.RWMutex
-	// quitChan chan chan error
-	closed bool
+	closed   bool
 
 	writeOptions *pebble.WriteOptions
 }
@@ -91,6 +102,71 @@ func (d *Database) DeleteRange(start []byte, end []byte) error {
 	return d.db.DeleteRange(start, end, d.writeOptions)
 }
 
+func (d *Database) Stat() (string, error) {
+	d.quitLock.RLock()
+	defer d.quitLock.RUnlock()
+	if d.closed {
+		return "", pebble.ErrClosed
+	}
+	return fmt.Sprintf("%+v", d.db.Metrics()), nil
+}
+
+func (d *Database) Sync() error {
+	d.quitLock.RLock()
+	defer d.quitLock.RUnlock()
+	if d.closed {
+		return pebble.ErrClosed
+	}
+	return d.db.Flush()
+}
+
+func (d *Database) Compact(start []byte, limit []byte) error {
+	d.quitLock.RLock()
+	defer d.quitLock.RUnlock()
+	if d.closed {
+		return pebble.ErrClosed
+	}
+	return d.db.Compact(start, limit, true)
+}
+
+func (d *Database) NewBatch() storage.Batch {
+	return &batch{b: d.db.NewBatch(), db: d}
+}
+
+func (d *Database) NewBatchWithSize(size int) storage.Batch {
+	return &batch{b: d.db.NewBatchWithSize(size), db: d, size: size}
+}
+
+// iteratorUpperBound returns the smallest key that is strictly greater than
+// all keys with the given prefix, so pebble stops scanning at the right point.
+func iteratorUpperBound(prefix []byte) []byte {
+	if len(prefix) == 0 {
+		return nil
+	}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	for i := len(end) - 1; i >= 0; i-- {
+		end[i]++
+		if end[i] != 0 {
+			return end[:i+1]
+		}
+	}
+	return nil // all-0xFF prefix: no upper bound
+}
+
+func (d *Database) NewIterator(prefix []byte, start []byte) storage.Iterator {
+	iter, _ := d.db.NewIter(&pebble.IterOptions{
+		LowerBound: append(prefix, start...),
+		UpperBound: iteratorUpperBound(prefix),
+	})
+	iter.First()
+	return &iterator{
+		iter:     iter,
+		moved:    true,
+		released: false,
+	}
+}
+
 type batch struct {
 	b    *pebble.Batch
 	db   *Database
@@ -123,6 +199,10 @@ func (b *batch) DeleteRange(start []byte, end []byte) error {
 
 func (b *batch) ValueSize() int {
 	return b.size
+}
+
+func (b *batch) Write() error {
+	return b.b.Commit(b.db.writeOptions)
 }
 
 func (b *batch) Reset() {
@@ -166,18 +246,6 @@ type iterator struct {
 	released bool
 }
 
-func (d *Database) NewIterator(prefix []byte, start []byte) *iterator {
-	iter, _ := d.db.NewIter(&pebble.IterOptions{
-		LowerBound: append(prefix, start...),
-		UpperBound: (prefix),
-	})
-	iter.First()
-	return &iterator{
-		iter:     iter,
-		moved:    true,
-		released: false,
-	}
-}
 func (it *iterator) Next() bool {
 	if it.moved {
 		it.moved = false
@@ -204,3 +272,6 @@ func (it *iterator) Release() {
 		it.released = true
 	}
 }
+
+// compile-time interface check
+var _ storage.KVStore = (*Database)(nil)

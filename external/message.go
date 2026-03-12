@@ -8,7 +8,7 @@ import (
 type Message struct {
 	Title   string
 	Content string
-	Level   level
+	Level   Level
 	Times   time.Time
 	Meta    map[string]any
 }
@@ -27,16 +27,16 @@ func (m *Message) Text() string {
 	)
 }
 
-type level int
+type Level int
 
 const (
-	Info level = iota
+	Info Level = iota
 	Warn
 	Error
 	Critical
 )
 
-var levelEmojis = map[level]string{
+var levelEmojis = map[Level]string{
 	Info:     "ℹ️",
 	Warn:     "⚠️",
 	Error:    "❌",
@@ -46,8 +46,6 @@ var levelEmojis = map[level]string{
 type platform string
 
 const (
-	Telegram  platform = "telegram"
-	Discord   platform = "discord"
-	Messenger platform = "messenger"
-	Slack     platform = "slack"
+	Telegram platform = "telegram"
+	Discord  platform = "discord"
 )

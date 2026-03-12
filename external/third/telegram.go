@@ -2,7 +2,8 @@ package third
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 )
 
 type Telegram struct {
+	mu     sync.RWMutex
 	bot    *tgbotapi.BotAPI
 	chatID int64
 
@@ -24,25 +26,47 @@ type Telegram struct {
 	cancel context.CancelFunc
 }
 
-func NewTelegram(token string, chatID int64, workers int, rate time.Duration) (*Telegram, error) {
-	bot, err := tgbotapi.NewBotAPI(token)
-	if err != nil {
-		return nil, err
-	}
+// NewTelegram creates and starts a Telegram bot worker pool.
+func NewTelegram(workers, maxSize, maxRetry int, rate time.Duration) (*Telegram, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-
 	n := &Telegram{
-		bot:        bot,
-		chatID:     chatID,
-		queue:      make(chan *external.Message, 100),
+		queue:      make(chan *external.Message, maxSize),
 		workers:    workers,
-		maxRetry:   3,
+		maxRetry:   maxRetry,
 		rateTicker: time.NewTicker(rate),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 	n.start()
 	return n, nil
+}
+
+// Register (re)configures the bot credentials at runtime without restarting workers.
+// creds.Token   = Telegram bot token.
+// creds.Channel = target chat ID (numeric string).
+func (t *Telegram) Register(creds external.Credentials) error {
+	if creds.Token == "" {
+		return external.ErrEmptyToken
+	}
+
+	bot, err := tgbotapi.NewBotAPI(creds.Token)
+	if err != nil {
+		return fmt.Errorf("telegram: invalid token: %w", err)
+	}
+
+	if creds.Channel == "" {
+		return external.ErrEmptyChannel
+	}
+	chatID, err := strconv.ParseInt(creds.Channel, 10, 64)
+	if err != nil {
+		return external.ErrInvalidChannel
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.bot = bot
+	t.chatID = chatID
+	return nil
 }
 
 func (t *Telegram) start() {
@@ -90,14 +114,23 @@ func (t *Telegram) Send(ctx context.Context, message *external.Message) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-		return errors.New("message queue is full")
+		return external.ErrQueueFull
 	}
 }
 
 func (t *Telegram) senddirectly(message *external.Message) error {
-	msg := tgbotapi.NewMessage(t.chatID, message.Text())
+	t.mu.RLock()
+	bot := t.bot
+	chatID := t.chatID
+	t.mu.RUnlock()
+
+	if bot == nil {
+		return external.ErrNotRegistered
+	}
+
+	msg := tgbotapi.NewMessage(chatID, message.Text())
 	msg.ParseMode = "Markdown"
-	_, err := t.bot.Send(msg)
+	_, err := bot.Send(msg)
 	return err
 }
 
