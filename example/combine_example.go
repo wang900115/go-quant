@@ -10,7 +10,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/wang900115/quant/exchange"
-	"github.com/wang900115/quant/exchange/coinbase"
+	"github.com/wang900115/quant/exchange/pyth"
 	"github.com/wang900115/quant/model"
 	"github.com/wang900115/quant/model/currency"
 	"github.com/wang900115/quant/model/trade"
@@ -24,16 +24,26 @@ func CombineExample() {
 	defer cancel()
 
 	// ============ Setup Trading Pair ============
+	accessToken := os.Getenv("PYTH_PRO_ACCESS_TOKEN")
+	if accessToken == "" {
+		log.Fatal("PYTH_PRO_ACCESS_TOKEN must be set to use Pyth Hermes")
+	}
+
 	QuotesPair := model.QuotesPair{
-		ExchangeID: model.COINBASE,
+		ExchangeID: model.PYTH,
 		Base:       currency.BTCSymbol,
-		Quote:      currency.USDTSymbol,
+		Quote:      currency.USDSymbol,
 		Category:   trade.SPOT,
 	}
 
 	// ============ Register Provider ============
 	providers := exchange.New()
-	providers.Register(model.COINBASE, coinbase.New(coinbase.CoinbaseConfig{}))
+	providers.Register(model.PYTH, pyth.New(pyth.PythConfig{
+		AccessToken: accessToken,
+		FeedIDs: map[string]string{
+			"BTC/USD": pythBTCUSDFeedID,
+		},
+	}))
 
 	// ============ Initial Price ============
 	pricePoint, err := providers.GetPrice(ctx, QuotesPair)
