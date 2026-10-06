@@ -52,6 +52,17 @@ func TestNewFromEnv_BinanceCredentials(t *testing.T) {
 	}
 }
 
+func TestNewFromEnv_PythAccessToken(t *testing.T) {
+	t.Setenv("PYTH_PRO_ACCESS_TOKEN", "test-access-token")
+	c, err := NewFromEnv()
+	if err != nil {
+		t.Fatalf("NewFromEnv: %v", err)
+	}
+	if c.Pyth.AccessToken != "test-access-token" {
+		t.Errorf("Pyth.AccessToken: want test token, got %q", c.Pyth.AccessToken)
+	}
+}
+
 func TestNewFromEnv_InvalidBufferSize(t *testing.T) {
 	t.Setenv("ENGINE_BUFFER_SIZE", "not-a-number")
 	_, err := NewFromEnv()

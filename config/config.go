@@ -9,6 +9,7 @@ import (
 	"github.com/wang900115/quant/exchange/binance"
 	"github.com/wang900115/quant/exchange/coinbase"
 	"github.com/wang900115/quant/exchange/okx"
+	"github.com/wang900115/quant/exchange/pyth"
 	"github.com/wang900115/quant/external"
 	"github.com/wang900115/quant/stoploss/engine"
 )
@@ -21,6 +22,7 @@ type Config struct {
 	Binance  binance.BinanceConfig
 	Coinbase coinbase.CoinbaseConfig
 	Okx      okx.OkxConfig
+	Pyth     pyth.PythConfig
 
 	// Notification bot configurations
 	Discord  external.Credentials
@@ -68,6 +70,7 @@ func NewFromEnv() (*Config, error) {
 	c.Coinbase.SecretKey = os.Getenv("COINBASE_SECRET")
 	c.Okx.APIKey = os.Getenv("OKX_API_KEY")
 	c.Okx.SecretKey = os.Getenv("OKX_SECRET")
+	c.Pyth.AccessToken = os.Getenv("PYTH_PRO_ACCESS_TOKEN")
 	c.Discord.Token = os.Getenv("DISCORD_WEBHOOK_URL")
 	c.Telegram.Token = os.Getenv("TELEGRAM_BOT_TOKEN")
 	c.Telegram.Channel = os.Getenv("TELEGRAM_CHAT_ID")
@@ -110,6 +113,12 @@ func (c *Config) WithCoinbase(opt coinbase.CoinbaseConfig) configOpts {
 func (c *Config) WithOkx(opt okx.OkxConfig) configOpts {
 	return func(c *Config) {
 		c.Okx = opt
+	}
+}
+
+func (c *Config) WithPyth(opt pyth.PythConfig) configOpts {
+	return func(c *Config) {
+		c.Pyth = opt
 	}
 }
 

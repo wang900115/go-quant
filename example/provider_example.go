@@ -16,15 +16,84 @@ package example
 import (
 	"context"
 	"log"
+	"os"
+	"time"
 
 	"github.com/wang900115/quant/exchange"
 	"github.com/wang900115/quant/exchange/binance"
 	"github.com/wang900115/quant/exchange/coinbase"
 	"github.com/wang900115/quant/exchange/okx"
+	"github.com/wang900115/quant/exchange/pyth"
 	"github.com/wang900115/quant/model"
 	"github.com/wang900115/quant/model/currency"
 	"github.com/wang900115/quant/model/trade"
 )
+
+const pythBTCUSDFeedID = "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43"
+
+func exchangeExamplePythPriceStream() {
+	accessToken := os.Getenv("PYTH_PRO_ACCESS_TOKEN")
+	if accessToken == "" {
+		log.Printf("Set PYTH_PRO_ACCESS_TOKEN to authenticate with Pyth Hermes")
+		return
+	}
+
+	provider := pyth.New(pyth.PythConfig{
+		AccessToken: accessToken,
+		FeedIDs: map[string]string{
+			"BTC/USD": pythBTCUSDFeedID,
+		},
+	})
+	defer provider.Close()
+
+	providers := exchange.New()
+	providers.Register(model.PYTH, provider)
+
+	pair := model.QuotesPair{
+		ExchangeID: model.PYTH,
+		Base:       currency.BTCSymbol,
+		Quote:      currency.USDSymbol,
+		Category:   trade.SPOT,
+	}
+	if err := providers.SubscribeStream(pair, []string{"ticker"}); err != nil {
+		log.Printf("Failed to subscribe to Pyth price stream: %v", err)
+		return
+	}
+	priceStream, _, _, err := providers.ReceiveStream(pair)
+	if err != nil {
+		log.Printf("Failed to receive Pyth price stream: %v", err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	dispatchDone := make(chan error, 1)
+	go func() {
+		dispatchDone <- provider.Dispatch(ctx)
+	}()
+
+	select {
+	case point, ok := <-priceStream:
+		if !ok {
+			log.Printf("Pyth price stream closed before receiving a price")
+			return
+		}
+		log.Printf("Pyth BTC/USD price: %s (published at %s)", point.NewPrice, point.UpdatedAt.Format(time.RFC3339))
+		cancel()
+		if err := <-dispatchDone; err != nil {
+			log.Printf("Pyth price stream stopped with error: %v", err)
+		}
+	case err := <-dispatchDone:
+		if err != nil {
+			log.Printf("Pyth price stream failed: %v", err)
+		} else {
+			log.Printf("Pyth price stream stopped before receiving a price")
+		}
+	case <-ctx.Done():
+		log.Printf("Timed out waiting for a Pyth BTC/USD price update: %v", ctx.Err())
+		<-dispatchDone
+	}
+}
 
 func exchangeExample1() {
 	ps := exchange.New()
