@@ -150,7 +150,7 @@ func (t *DebouncedPercentStop) ShouldTriggerStopLoss(currentPrice decimal.Decima
 			t.TriggerTime = currentTime
 		}
 		if currentTime-t.TriggerTime >= t.TimeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_PERCENTCILE_STOPLOSS)
+			err := t.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_PERCENTCILE_STOPLOSS, t.threshold, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -171,7 +171,7 @@ func (t *DebouncedPercentProfit) ShouldTriggerTakeProfit(currentPrice decimal.De
 			t.TriggerTime = currentTime
 		}
 		if currentTime-t.TriggerTime >= t.TimeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_PERCENTCILE_TAKEPROFIT)
+			err := t.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_PERCENTCILE_TAKEPROFIT, t.threshold, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -199,7 +199,7 @@ func (f *FixedPercentStop) ShouldTriggerStopLoss(currentPrice decimal.Decimal) (
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.LessThanOrEqual(f.threshold) {
-		err := f.Trigger(stoploss.TRIGGERED_REASON_FIXED_PERCENTCILE_STOPLOSS)
+		err := f.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_FIXED_PERCENTCILE_STOPLOSS, f.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -243,7 +243,7 @@ func (f *FixedPercentProfit) ShouldTriggerTakeProfit(currentPrice decimal.Decima
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.GreaterThanOrEqual(f.threshold) {
-		err := f.Trigger(stoploss.TRIGGERED_REASON_FIXED_PERCENTCILE_TAKEPROFIT)
+		err := f.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_FIXED_PERCENTCILE_TAKEPROFIT, f.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}

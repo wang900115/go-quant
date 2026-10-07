@@ -69,7 +69,7 @@ func (t *DebouncedATRStop) ShouldTriggerStopLoss(currentPrice decimal.Decimal, c
 		if t.TriggerTime == 0 {
 			t.TriggerTime = currentTimestamp
 		} else if currentTimestamp-t.TriggerTime >= t.TimeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_ATR_STOPLOSS)
+			err := t.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_ATR_STOPLOSS, t.threshold, currentPrice, currentTimestamp))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -123,7 +123,7 @@ func (t *DebouncedATRProfit) ShouldTriggerTakeProfit(currentPrice decimal.Decima
 		if t.TriggerTime == 0 {
 			t.TriggerTime = currentTimestamp
 		} else if currentTimestamp-t.TriggerTime >= t.TimeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_ATR_TAKEPROFIT)
+			err := t.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_ATR_TAKEPROFIT, t.threshold, currentPrice, currentTimestamp))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -285,7 +285,7 @@ func (a *FixedATRStop) ShouldTriggerStopLoss(currentPrice decimal.Decimal) (bool
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.LessThanOrEqual(a.threshold) {
-		err := a.Trigger(stoploss.TRIGGERED_REASON_FIXED_ATR_STOPLOSS)
+		err := a.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_FIXED_ATR_STOPLOSS, a.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -300,7 +300,7 @@ func (a *FixedATRProfit) ShouldTriggerTakeProfit(currentPrice decimal.Decimal) (
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.GreaterThanOrEqual(a.threshold) {
-		err := a.Trigger(stoploss.TRIGGERED_REASON_FIXED_ATR_TAKEPROFIT)
+		err := a.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_FIXED_ATR_TAKEPROFIT, a.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}

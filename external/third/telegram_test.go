@@ -93,3 +93,25 @@ func TestTelegram_Close(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 }
+
+func TestTelegram_SendAfterClose(t *testing.T) {
+	tg, _ := NewTelegram(1, 5, 1, 10*time.Millisecond)
+	if err := tg.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := tg.Send(context.Background(), &external.Message{Raw: "x"}); !errors.Is(err, external.ErrBotClosed) {
+		t.Fatalf("want ErrBotClosed, got %v", err)
+	}
+	// Close is idempotent.
+	if err := tg.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEscapeMarkdown(t *testing.T) {
+	got := escapeMarkdown("BTC_USDT *x* `y` [z]")
+	want := "BTC\\_USDT \\*x\\* \\`y\\` \\[z]"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}

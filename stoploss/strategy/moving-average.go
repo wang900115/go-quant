@@ -220,7 +220,7 @@ func (ma *FixedMovingAverageStop) ShouldTriggerStopLoss(currentPrice decimal.Dec
 	}
 
 	if currentPrice.LessThanOrEqual(ma.threshold) {
-		err := ma.Trigger(stoploss.TRIGGERED_REASON_FIXED_MA_STOPLOSS)
+		err := ma.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_FIXED_MA_STOPLOSS, ma.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -235,7 +235,7 @@ func (ma *FixedMovingAverageProfit) ShouldTriggerTakeProfit(currentPrice decimal
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.GreaterThanOrEqual(ma.threshold) {
-		err := ma.Trigger(stoploss.TRIGGERED_REASON_FIXED_MA_TAKEPROFIT)
+		err := ma.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_FIXED_MA_TAKEPROFIT, ma.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -255,7 +255,7 @@ func (ma *DebouncedMovingAverageStop) ShouldTriggerStopLoss(currentPrice decimal
 			ma.TriggerTime = currentTime
 		}
 		if currentTime-ma.TriggerTime >= ma.TimeThreshold {
-			err := ma.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_MA_STOPLOSS)
+			err := ma.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_MA_STOPLOSS, ma.threshold, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -277,7 +277,7 @@ func (ma *DebouncedMovingAverageProfit) ShouldTriggerTakeProfit(currentPrice dec
 			ma.TriggerTime = currentTime
 		}
 		if currentTime-ma.TriggerTime >= ma.TimeThreshold {
-			err := ma.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_MA_TAKEPROFIT)
+			err := ma.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_MA_TAKEPROFIT, ma.threshold, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}

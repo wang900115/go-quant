@@ -22,6 +22,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/wang900115/quant/model"
+	"github.com/wang900115/quant/stoploss"
 	"github.com/wang900115/quant/stoploss/engine"
 	"github.com/wang900115/quant/stoploss/strategy"
 )
@@ -56,7 +57,6 @@ func StrategyUsage() {
 		CheckInterval: time.Second * 3,
 	}
 
-	
 	// Create the manager instance
 	manager := engine.New(config)
 
@@ -64,8 +64,9 @@ func StrategyUsage() {
 	entryPrice := decimal.NewFromFloat(100.0)
 
 	// Create callback function for all strategies
-	callback := func(reason string) error {
-		fmt.Printf("Strategy triggered: %s\n", reason)
+	callback := func(evt stoploss.TriggerEvent) error {
+		fmt.Printf("Strategy triggered: [%s] %s hit=%s current=%s\n",
+			evt.Category, evt.Reason, evt.HitPrice, evt.CurrentPrice)
 		return nil
 	}
 

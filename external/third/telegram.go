@@ -3,7 +3,9 @@ package third
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +26,9 @@ type Telegram struct {
 	wg     sync.WaitGroup
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	closeOnce sync.Once
+	closed    bool // guarded by mu
 }
 
 // NewTelegram creates and starts a Telegram bot worker pool.
@@ -97,17 +102,35 @@ func (t *Telegram) worker() {
 }
 
 func (t *Telegram) sendWithRetry(message *external.Message) {
-	for i := 0; i < t.maxRetry; i++ {
-		err := t.senddirectly(message)
-		if err == nil {
+	attempts := t.maxRetry
+	if attempts < 1 {
+		attempts = 1
+	}
+	var err error
+	for i := 0; i < attempts; i++ {
+		if err = t.senddirectly(message); err == nil {
 			return
 		}
+		if i == attempts-1 {
+			break
+		}
 		backoff := time.Duration(1<<i) * time.Second
-		time.Sleep(backoff)
+		select {
+		case <-time.After(backoff):
+		case <-t.ctx.Done():
+			log.Printf("telegram: shutdown during retry, message dropped: %v", err)
+			return
+		}
 	}
+	log.Printf("telegram: giving up after %d attempts: %v", attempts, err)
 }
 
 func (t *Telegram) Send(ctx context.Context, message *external.Message) error {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if t.closed {
+		return external.ErrBotClosed
+	}
 	select {
 	case t.queue <- message:
 		return nil
@@ -128,8 +151,18 @@ func (t *Telegram) senddirectly(message *external.Message) error {
 		return external.ErrNotRegistered
 	}
 
-	msg := tgbotapi.NewMessage(chatID, message.Text())
-	msg.ParseMode = "Markdown"
+	var msg tgbotapi.MessageConfig
+	if message.Raw != "" {
+		// Raw messages go out as plain text so symbols like BTC_USDT are
+		// never mis-parsed as Markdown.
+		msg = tgbotapi.NewMessage(chatID, message.Raw)
+	} else {
+		safe := *message
+		safe.Title = escapeMarkdown(message.Title)
+		safe.Content = escapeMarkdown(message.Content)
+		msg = tgbotapi.NewMessage(chatID, safe.Text())
+		msg.ParseMode = "Markdown"
+	}
 	_, err := bot.Send(msg)
 	return err
 }
@@ -138,12 +171,25 @@ func (t *Telegram) rateLimit() {
 	<-t.rateTicker.C
 }
 
+// Close stops accepting new messages, lets workers drain whatever is
+// already queued, then shuts down. Safe to call more than once.
 func (t *Telegram) Close() error {
-	t.cancel()
-	close(t.queue)
-	t.wg.Wait()
-	t.rateTicker.Stop()
+	t.closeOnce.Do(func() {
+		t.mu.Lock()
+		t.closed = true
+		close(t.queue) // workers exit after draining remaining messages
+		t.mu.Unlock()
+
+		t.wg.Wait()
+		t.cancel()
+		t.rateTicker.Stop()
+	})
 	return nil
 }
+
+// markdownEscaper escapes Telegram legacy-Markdown control characters.
+var markdownEscaper = strings.NewReplacer("_", "\\_", "*", "\\*", "`", "\\`", "[", "\\[")
+
+func escapeMarkdown(s string) string { return markdownEscaper.Replace(s) }
 
 var _ external.Bot = (*Telegram)(nil)

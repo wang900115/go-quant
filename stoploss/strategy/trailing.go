@@ -182,7 +182,7 @@ func (t *FixedTrailingStop) ShouldTriggerStopLoss(currentPrice decimal.Decimal) 
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.LessThanOrEqual(t.threshold) {
-		err := t.Trigger(stoploss.TRIGGERED_REASON_FIXED_TRAILING_STOPLOSS)
+		err := t.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_FIXED_TRAILING_STOPLOSS, t.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -197,7 +197,7 @@ func (t *FixedTrailingProfit) ShouldTriggerTakeProfit(currentPrice decimal.Decim
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.GreaterThanOrEqual(t.threshold) {
-		err := t.Trigger(stoploss.TRIGGERED_REASON_FIXED_TRAILING_TAKEPROFIT)
+		err := t.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_FIXED_TRAILING_TAKEPROFIT, t.threshold, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -215,7 +215,7 @@ func (t *TrailingDebouncedStop) ShouldTriggerStopLoss(currentPrice decimal.Decim
 		if t.triggerTime == 0 {
 			t.triggerTime = currentTimestamp
 		} else if currentTimestamp-t.triggerTime >= t.timeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_TRAILING_STOPLOSS)
+			err := t.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_TRAILING_STOPLOSS, t.threshold, currentPrice, currentTimestamp))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -236,7 +236,7 @@ func (t *TrailingDebouncedProfit) ShouldTriggerTakeProfit(currentPrice decimal.D
 		if t.triggerTime == 0 {
 			t.triggerTime = currentTimestamp
 		} else if currentTimestamp-t.triggerTime >= t.timeThreshold {
-			err := t.Trigger(stoploss.TRIGGERED_REASON_DEBOUNCED_TRAILING_TAKEPROFIT)
+			err := t.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_DEBOUNCED_TRAILING_TAKEPROFIT, t.threshold, currentPrice, currentTimestamp))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
