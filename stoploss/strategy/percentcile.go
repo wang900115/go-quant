@@ -189,7 +189,7 @@ func (f *FixedPercentStop) CalculateStopLoss(currentPrice decimal.Decimal) (deci
 		return decimal.Zero, stoploss.ErrStatusInvalid
 	}
 	f.LastPrice = currentPrice
-	f.threshold = currentPrice.Mul(decimal.NewFromInt(1).Sub(f.tolerancePct))
+	// f.threshold = currentPrice.Mul(decimal.NewFromInt(1).Sub(f.tolerancePct))
 	return f.threshold, nil
 }
 
@@ -233,7 +233,7 @@ func (f *FixedPercentProfit) CalculateTakeProfit(currentPrice decimal.Decimal) (
 		return decimal.Zero, stoploss.ErrStatusInvalid
 	}
 	f.LastPrice = currentPrice
-	f.threshold = currentPrice.Mul(decimal.NewFromInt(1).Add(f.tolerancePct))
+	// f.threshold = currentPrice.Mul(decimal.NewFromInt(1).Add(f.tolerancePct))
 	return f.threshold, nil
 }
 

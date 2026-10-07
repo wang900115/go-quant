@@ -1,6 +1,6 @@
 module github.com/wang900115/quant
 
-go 1.25.3
+go 1.27.1
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
@@ -12,7 +12,7 @@ require (
 )
 
 require (
-	github.com/DataDog/zstd v1.4.5 // indirect
+	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect

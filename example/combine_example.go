@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/wang900115/quant/exchange"
@@ -53,12 +52,25 @@ func CombineExample() {
 
 	// ============ StopLoss Engine ============
 	manger := engine.New(engine.DefaultConfig())
+	// percentcilStopStrategy, _ := strategy.NewFixedPercentStop(
+	// 	pricePoint.NewPrice,
+	// 	decimal.NewFromFloat(0.0001),
+	// 	nil,
+	// )
+	// manger.RegisterStrategy("Percentcil-Stop-0.01%", percentcilStopStrategy)
 	trailingStopStrategy, _ := strategy.NewFixedTrailingStop(
 		pricePoint.NewPrice,
 		decimal.NewFromFloat(0.03),
 		nil,
 	)
 	manger.RegisterStrategy("Fixed-Trailing-Stop-3%", trailingStopStrategy)
+	riskRewardStrategy, _ := strategy.NewRiskRewardRatio(
+		pricePoint.NewPrice,
+		decimal.NewFromFloat(0.02),
+		decimal.NewFromFloat(0.03),
+		nil,
+	)
+	manger.RegisterStrategy("Risk-Reward-(2:3)", riskRewardStrategy)
 	manger.Start()
 
 	// ============ Stream Subscribe ============
@@ -109,5 +121,5 @@ func CombineExample() {
 	manger.Stop()
 	cancel()
 
-	time.Sleep(2 * time.Second)
+	// time.Sleep(2 * time.Second)
 }

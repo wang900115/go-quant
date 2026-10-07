@@ -87,20 +87,20 @@ func (rp *Report) ProcessHybridResult(res <-chan result.StrategyHybridResult, ct
 
 			if r.Error != nil {
 				rp.errorCount.Inc(1)
-				fmt.Printf("🔴 HYBRID ERROR in %s: %v\n", r.StrategyName, r.Error)
+				fmt.Printf("🔴 HYBRID ERROR in %s (%s): %v\n", r.StrategyName, r.StrategyType, r.Error)
 				continue
 			}
 
 			if r.Triggered {
 				rp.triggerCount.Inc(1)
-				fmt.Printf("🔔 HYBRID TRIGGER: %s at price %s stoploss at %s take profit at %s\n",
-					r.StrategyName, r.LastPrice.String(), r.StopStat.PriceThreshold.String(), r.ProfitStat.PriceThreshold.String())
+				fmt.Printf("🔔 HYBRID TRIGGER: %s (%s) at price %s stoploss at %s take profit at %s\n",
+					r.StrategyName, r.StrategyType, r.LastPrice.String(), r.StopStat.PriceThreshold.String(), r.ProfitStat.PriceThreshold.String())
 				if rp.Callback != nil {
 					rp.Callback(r)
 				}
 			} else {
-				fmt.Printf("📊 HYBRID UPDATE: %s at price %s stoploss at %s take profit at %s\n",
-					r.StrategyName, r.LastPrice.String(), r.StopStat.PriceThreshold.String(), r.ProfitStat.PriceThreshold.String())
+				fmt.Printf("📊 HYBRID UPDATE: %s (%s) at price %s stoploss at %s take profit at %s\n",
+					r.StrategyName, r.StrategyType, r.LastPrice.String(), r.StopStat.PriceThreshold.String(), r.ProfitStat.PriceThreshold.String())
 			}
 		}
 	}
