@@ -29,7 +29,7 @@ type HybridWithTime interface {
 
 type Hybrid interface {
 	Calculate(currentPrice decimal.Decimal) (decimal.Decimal, decimal.Decimal, error)
-	Trigger(reason string) error
+	Trigger(evt TriggerEvent) error
 	ReSet(currentPrice decimal.Decimal) error
 	GetTakeProfit() (decimal.Decimal, error)
 	GetStopLoss() (decimal.Decimal, error)
@@ -75,7 +75,7 @@ type DebouncedMATakeProfit interface {
 // general TakeProfit interface
 type TakeProfit interface {
 	CalculateTakeProfit(currentPrice decimal.Decimal) (decimal.Decimal, error)
-	Trigger(reason string) error
+	Trigger(evt TriggerEvent) error
 	ReSetTakeProfiter(currentPrice decimal.Decimal) error
 	GetTakeProfit() (decimal.Decimal, error)
 	Deactivate() error
