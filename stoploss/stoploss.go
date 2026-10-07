@@ -15,8 +15,10 @@ package stoploss
 
 import (
 	"errors"
+	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/wang900115/quant/model"
 )
 
 var (
@@ -63,7 +65,7 @@ type DebouncedMAStopLoss interface {
 // general StopLoss interface
 type StopLoss interface {
 	CalculateStopLoss(currentPrice decimal.Decimal) (decimal.Decimal, error)
-	Trigger(reason string) error
+	Trigger(evt TriggerEvent) error
 	GetStopLoss() (decimal.Decimal, error)
 	ReSetStopLosser(currentPrice decimal.Decimal) error
 	Deactivate() error
@@ -80,7 +82,48 @@ type StopLossCond interface {
 	ShouldTriggerStopLoss(currentPrice decimal.Decimal) (bool, error)
 }
 
-type DefaultCallback func(reason string) error
+// TriggerEvent carries everything a callback needs to know about a
+// stop-loss / take-profit hit.
+type TriggerEvent struct {
+	// Category is model.STOP_LOSS or model.TAKE_PROFIT.
+	Category model.StrategyCategory
+	// Reason is one of the TRIGGERED_REASON_* constants.
+	Reason string
+	// HitPrice is the threshold that was crossed.
+	HitPrice decimal.Decimal
+	// CurrentPrice is the market price that crossed the threshold.
+	CurrentPrice decimal.Decimal
+	// Timestamp is the trigger time in Unix seconds.
+	Timestamp int64
+}
+
+// Time returns the event timestamp as time.Time (falls back to now when unset).
+func (e TriggerEvent) Time() time.Time {
+	if e.Timestamp <= 0 {
+		return time.Now()
+	}
+	return time.Unix(e.Timestamp, 0)
+}
+
+// NewStopLossEvent builds a STOP_LOSS TriggerEvent. ts <= 0 means "now".
+func NewStopLossEvent(reason string, hit, current decimal.Decimal, ts int64) TriggerEvent {
+	return newEvent(model.STOP_LOSS, reason, hit, current, ts)
+}
+
+// NewTakeProfitEvent builds a TAKE_PROFIT TriggerEvent. ts <= 0 means "now".
+func NewTakeProfitEvent(reason string, hit, current decimal.Decimal, ts int64) TriggerEvent {
+	return newEvent(model.TAKE_PROFIT, reason, hit, current, ts)
+}
+
+func newEvent(c model.StrategyCategory, reason string, hit, current decimal.Decimal, ts int64) TriggerEvent {
+	if ts <= 0 {
+		ts = time.Now().Unix()
+	}
+	return TriggerEvent{Category: c, Reason: reason, HitPrice: hit, CurrentPrice: current, Timestamp: ts}
+}
+
+// DefaultCallback is invoked when a strategy fires.
+type DefaultCallback func(evt TriggerEvent) error
 
 type BaseResolver struct {
 	Active   bool
@@ -95,12 +138,12 @@ func (b *BaseResolver) Deactivate() error {
 	return nil
 }
 
-func (b *BaseResolver) Trigger(reason string) error {
+func (b *BaseResolver) Trigger(evt TriggerEvent) error {
 	if !b.Active {
 		return ErrStatusInvalid
 	}
 	if b.Callback != nil {
-		return b.Callback(reason)
+		return b.Callback(evt)
 	}
 	return nil
 }

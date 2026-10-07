@@ -198,7 +198,7 @@ func (ss *StructureSwing) ShouldTriggerStopLoss(currentPrice decimal.Decimal) (b
 	}
 
 	if triggered {
-		err := ss.Trigger(stoploss.TRIGGERED_REASON_STRUCTURE_SWING_STOPLOSS)
+		err := ss.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_STRUCTURE_SWING_STOPLOSS, ss.stopLoss, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -225,7 +225,7 @@ func (ss *StructureSwing) ShouldTriggerTakeProfit(currentPrice decimal.Decimal) 
 	}
 
 	if triggered {
-		err := ss.Trigger(stoploss.TRIGGERED_REASON_STRUCTURE_SWING_TAKEPROFIT)
+		err := ss.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_STRUCTURE_SWING_TAKEPROFIT, ss.takeProfit, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}

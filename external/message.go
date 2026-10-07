@@ -6,6 +6,9 @@ import (
 )
 
 type Message struct {
+	// Raw, when non-empty, is sent verbatim as plain text and bypasses the
+	// emoji/title template produced by Text().
+	Raw     string
 	Title   string
 	Content string
 	Level   Level
@@ -14,6 +17,9 @@ type Message struct {
 }
 
 func (m *Message) Text() string {
+	if m.Raw != "" {
+		return m.Raw
+	}
 	emoji, ok := levelEmojis[m.Level]
 	if !ok {
 		return ""

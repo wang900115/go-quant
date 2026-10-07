@@ -29,4 +29,7 @@ var (
 	// ErrNotRegistered is returned by Send / sendDirectly when Register has
 	// not been called yet, meaning the bot has no credentials configured.
 	ErrNotRegistered = errors.New("bot credentials not registered; call Register first")
+
+	// ErrBotClosed is returned by Send after Close has been called.
+	ErrBotClosed = errors.New("bot is closed")
 )

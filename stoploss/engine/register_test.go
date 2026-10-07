@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/wang900115/quant/stoploss"
 )
 
 // --- mock strategy types ---
@@ -14,10 +15,10 @@ type mockFixedSL struct{}
 func (m *mockFixedSL) CalculateStopLoss(p decimal.Decimal) (decimal.Decimal, error) {
 	return p, nil
 }
-func (m *mockFixedSL) Trigger(reason string) error              { return nil }
+func (m *mockFixedSL) Trigger(evt stoploss.TriggerEvent) error { return nil }
 func (m *mockFixedSL) GetStopLoss() (decimal.Decimal, error)   { return decimal.Zero, nil }
 func (m *mockFixedSL) ReSetStopLosser(p decimal.Decimal) error { return nil }
-func (m *mockFixedSL) Deactivate() error                        { return nil }
+func (m *mockFixedSL) Deactivate() error                       { return nil }
 func (m *mockFixedSL) ShouldTriggerStopLoss(p decimal.Decimal) (bool, error) {
 	return false, nil
 }
@@ -27,10 +28,10 @@ type mockDebouncedSL struct{}
 func (m *mockDebouncedSL) CalculateStopLoss(p decimal.Decimal) (decimal.Decimal, error) {
 	return p, nil
 }
-func (m *mockDebouncedSL) Trigger(reason string) error              { return nil }
+func (m *mockDebouncedSL) Trigger(evt stoploss.TriggerEvent) error { return nil }
 func (m *mockDebouncedSL) GetStopLoss() (decimal.Decimal, error)   { return decimal.Zero, nil }
 func (m *mockDebouncedSL) ReSetStopLosser(p decimal.Decimal) error { return nil }
-func (m *mockDebouncedSL) Deactivate() error                        { return nil }
+func (m *mockDebouncedSL) Deactivate() error                       { return nil }
 func (m *mockDebouncedSL) ShouldTriggerStopLoss(p decimal.Decimal, ts int64) (bool, error) {
 	return false, nil
 }
@@ -41,7 +42,7 @@ type mockFixedTP struct{}
 func (m *mockFixedTP) CalculateTakeProfit(p decimal.Decimal) (decimal.Decimal, error) {
 	return p, nil
 }
-func (m *mockFixedTP) Trigger(reason string) error               { return nil }
+func (m *mockFixedTP) Trigger(evt stoploss.TriggerEvent) error   { return nil }
 func (m *mockFixedTP) ReSetTakeProfiter(p decimal.Decimal) error { return nil }
 func (m *mockFixedTP) GetTakeProfit() (decimal.Decimal, error)   { return decimal.Zero, nil }
 func (m *mockFixedTP) Deactivate() error                         { return nil }
@@ -54,7 +55,7 @@ type mockDebouncedTP struct{}
 func (m *mockDebouncedTP) CalculateTakeProfit(p decimal.Decimal) (decimal.Decimal, error) {
 	return p, nil
 }
-func (m *mockDebouncedTP) Trigger(reason string) error               { return nil }
+func (m *mockDebouncedTP) Trigger(evt stoploss.TriggerEvent) error   { return nil }
 func (m *mockDebouncedTP) ReSetTakeProfiter(p decimal.Decimal) error { return nil }
 func (m *mockDebouncedTP) GetTakeProfit() (decimal.Decimal, error)   { return decimal.Zero, nil }
 func (m *mockDebouncedTP) Deactivate() error                         { return nil }
@@ -68,7 +69,7 @@ type mockHybridFixed struct{}
 func (m *mockHybridFixed) Calculate(p decimal.Decimal) (decimal.Decimal, decimal.Decimal, error) {
 	return p, p, nil
 }
-func (m *mockHybridFixed) Trigger(reason string) error             { return nil }
+func (m *mockHybridFixed) Trigger(evt stoploss.TriggerEvent) error { return nil }
 func (m *mockHybridFixed) ReSet(p decimal.Decimal) error           { return nil }
 func (m *mockHybridFixed) GetTakeProfit() (decimal.Decimal, error) { return decimal.Zero, nil }
 func (m *mockHybridFixed) GetStopLoss() (decimal.Decimal, error)   { return decimal.Zero, nil }
@@ -85,7 +86,7 @@ type mockHybridDebounced struct{}
 func (m *mockHybridDebounced) Calculate(p decimal.Decimal) (decimal.Decimal, decimal.Decimal, error) {
 	return p, p, nil
 }
-func (m *mockHybridDebounced) Trigger(reason string) error             { return nil }
+func (m *mockHybridDebounced) Trigger(evt stoploss.TriggerEvent) error { return nil }
 func (m *mockHybridDebounced) ReSet(p decimal.Decimal) error           { return nil }
 func (m *mockHybridDebounced) GetTakeProfit() (decimal.Decimal, error) { return decimal.Zero, nil }
 func (m *mockHybridDebounced) GetStopLoss() (decimal.Decimal, error)   { return decimal.Zero, nil }
