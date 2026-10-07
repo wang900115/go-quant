@@ -101,7 +101,7 @@ func (r *RiskRewardRatio) ShouldTriggerStopLoss(currentPrice decimal.Decimal) (b
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.LessThanOrEqual(r.stopLoss) {
-		err := r.Trigger(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_STOPLOSS)
+		err := r.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_STOPLOSS, r.stopLoss, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -115,7 +115,7 @@ func (r *RiskRewardRatio) ShouldTriggerTakeProfit(currentPrice decimal.Decimal) 
 		return false, stoploss.ErrStatusInvalid
 	}
 	if currentPrice.GreaterThanOrEqual(r.takeProfit) {
-		err := r.Trigger(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_TAKEPROFIT)
+		err := r.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_TAKEPROFIT, r.takeProfit, currentPrice, 0))
 		if err != nil {
 			return true, stoploss.ErrCallBackFail
 		}
@@ -133,7 +133,7 @@ func (r *RiskRewardRatioDebounced) ShouldTriggerStopLoss(currentPrice decimal.De
 			r.TriggerTime = currentTime
 		}
 		if currentTime-r.TriggerTime >= r.TimeThreshold {
-			err := r.Trigger(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_STOPLOSS)
+			err := r.Trigger(stoploss.NewStopLossEvent(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_STOPLOSS, r.stopLoss, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
@@ -154,7 +154,7 @@ func (r *RiskRewardRatioDebounced) ShouldTriggerTakeProfit(currentPrice decimal.
 			r.TriggerTime = currentTime
 		}
 		if currentTime-r.TriggerTime >= r.TimeThreshold {
-			err := r.Trigger(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_TAKEPROFIT)
+			err := r.Trigger(stoploss.NewTakeProfitEvent(stoploss.TRIGGERED_REASON_HYBRID_RISK_REWARD_TAKEPROFIT, r.takeProfit, currentPrice, currentTime))
 			if err != nil {
 				return true, stoploss.ErrCallBackFail
 			}
