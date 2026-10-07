@@ -416,10 +416,10 @@ func (csm *StrategyEngine) processHybridFixedStrategies(update model.PricePoint,
 }
 
 func (csm *StrategyEngine) processHybridDebouncedStrategies(update model.PricePoint, ctx context.Context) {
-	strategies := csm.portfolio.GetHybridStrategies()
+	strategies := csm.portfolio.GetHybridDebouncedStrategies()
 	for name, strategy := range strategies {
-		shouldTriggerSL, errSL := strategy.ShouldTriggerStopLoss(update.NewPrice)
-		shouldTriggerTP, errTP := strategy.ShouldTriggerTakeProfit(update.NewPrice)
+		shouldTriggerSL, errSL := strategy.ShouldTriggerStopLoss(update.NewPrice, update.UpdatedAt.UnixMilli())
+		shouldTriggerTP, errTP := strategy.ShouldTriggerTakeProfit(update.NewPrice, update.UpdatedAt.UnixMilli())
 		newStop, newProfit, calcErr := strategy.Calculate(update.NewPrice)
 		if calcErr == nil {
 			result := result.NewHybrid(name, model.HYBRID_DEBUNCED, update.NewPrice, newStop, newProfit, update.UpdatedAt, time.Duration(0))
