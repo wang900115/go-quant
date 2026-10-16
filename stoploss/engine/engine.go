@@ -15,6 +15,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/wang900115/quant/model"
 	"github.com/wang900115/quant/model/result"
 	"github.com/wang900115/quant/stoploss"
+	"github.com/wang900115/quant/storage"
 )
 
 type strategyEngineError struct{ msg string }
@@ -48,21 +50,25 @@ type Config struct {
 	HeartbeatInterval time.Duration
 	// Interval between for failed goroutine retry mechanism
 	RetryInterval time.Duration
+	// Interval between persisted runtime state snapshots
+	StatePersistInterval time.Duration
 	// Report Callback func
 	ReportCallback func(interface{})
 }
 
 func DefaultConfig() Config {
 	return Config{
-		BufferSize:        2048,
-		ReadTimeout:       3 * time.Second,
-		CheckInterval:     5 * time.Second,
-		HeartbeatInterval: 15 * time.Second,
-		RetryInterval:     1 * time.Second,
+		BufferSize:           2048,
+		ReadTimeout:          3 * time.Second,
+		CheckInterval:        5 * time.Second,
+		HeartbeatInterval:    15 * time.Second,
+		RetryInterval:        1 * time.Second,
+		StatePersistInterval: 15 * time.Second,
 	}
 }
 
 type StrategyEngine struct {
+	storage.KVStore
 	engine    *sys.Engine
 	portfolio *Portfolio
 	execution *Execution
@@ -71,8 +77,13 @@ type StrategyEngine struct {
 	Config    Config
 }
 
-func New(config Config) *StrategyEngine {
+func New(config Config, kv storage.KVStore) *StrategyEngine {
+	var store storage.KVStore
+	if kv != nil {
+		store = kv
+	}
 	return &StrategyEngine{
+		KVStore:   store,
 		engine:    sys.NewEngine(config.RetryInterval, config.CheckInterval),
 		portfolio: NewPortfolio(),
 		execution: NewExecutionManager(config.BufferSize, config.BufferRSize),
@@ -170,6 +181,13 @@ func (csm *StrategyEngine) Start() error {
 		return count
 	}())
 
+	if csm.KVStore != nil {
+		csm.persistRuntimeState(RuntimeStateRunning)
+		csm.engine.SafeGo(func(ctx context.Context) {
+			csm.persistRuntimeStatePeriodically(ctx)
+		}, nil)
+	}
+
 	time.Sleep(30 * time.Second)
 
 	log.Println(csm.Snapshot())
@@ -182,6 +200,48 @@ func (csm *StrategyEngine) Snapshot() map[string]int64 {
 
 func (csm *StrategyEngine) GetMetrics() map[string]interface{} {
 	return csm.Metrics.Stats()
+}
+
+func (csm *StrategyEngine) persistRuntimeStatePeriodically(ctx context.Context) {
+	interval := csm.Config.StatePersistInterval
+	if interval <= 0 {
+		interval = DefaultConfig().StatePersistInterval
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			csm.persistRuntimeState(RuntimeStateRunning)
+		}
+	}
+}
+
+func (csm *StrategyEngine) persistRuntimeState(status string) {
+	if csm.KVStore == nil {
+		return
+	}
+	csm.portfolio.mutex.Lock()
+	strategyCount := csm.portfolio.count
+	csm.portfolio.mutex.Unlock()
+
+	state := RuntimeState{
+		Status:        status,
+		UpdatedAt:     time.Now().UTC(),
+		StrategyCount: strategyCount,
+		Results:       csm.Snapshot(),
+		Metrics:       csm.GetMetrics(),
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		log.Printf("engine state: encode snapshot: %v", err)
+		return
+	}
+	if err := csm.Put([]byte(RuntimeStateKey), data); err != nil {
+		log.Printf("engine state: write %q: %v", RuntimeStateKey, err)
+	}
 }
 
 func (csm *StrategyEngine) handleFixedStopLoss(ctx context.Context) {
@@ -471,6 +531,7 @@ func (csm *StrategyEngine) Collect(pricePoint model.PricePoint, callback func())
 func (csm *StrategyEngine) Stop() {
 	csm.engine.Stop()
 	csm.execution.closeChannels()
+	csm.persistRuntimeState(RuntimeStateStopped)
 }
 
 func dataFeedWithMetrics(pricePoint model.PricePoint, channel chan model.PricePoint, typ model.StrategyType, category model.StrategyCategory, metrics *Metrics, callback func()) {

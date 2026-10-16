@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	appconfig "github.com/wang900115/quant/config"
 	"github.com/wang900115/quant/exchange"
 	"github.com/wang900115/quant/exchange/pyth"
 	"github.com/wang900115/quant/external/notify"
@@ -18,11 +19,33 @@ import (
 	"github.com/wang900115/quant/model/trade"
 	"github.com/wang900115/quant/stoploss/engine"
 	"github.com/wang900115/quant/stoploss/strategy"
+	"github.com/wang900115/quant/storage"
+	"github.com/wang900115/quant/storage/redis"
 )
 
 func CombineExample() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	cfg, err := appconfig.NewFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to load application config: %v", err)
+	}
+
+	var kv storage.KVStore
+	var redisDB *redis.Database
+	if cfg.Redis.Addr != "" {
+		redisDB, err = redis.Open(cfg.Redis)
+		if err != nil {
+			log.Fatalf("Failed to connect to Redis: %v", err)
+		}
+		kv = redisDB
+		defer func() {
+			if err := redisDB.Close(); err != nil {
+				log.Printf("Failed to close Redis: %v", err)
+			}
+		}()
+	}
 
 	// ============ Trading Pair Setting ============
 	tradingPair := model.QuotesPair{
@@ -38,7 +61,7 @@ func CombineExample() {
 		log.Fatal("PYTH_PRO_ACCESS_TOKEN must be set to use Pyth Hermes")
 	}
 
-	providers := exchange.New()
+	providers := exchange.New(kv)
 	providers.Register(model.PYTH, pyth.New(pyth.PythConfig{
 		AccessToken: accessToken,
 		FeedIDs: map[string]string{
@@ -76,7 +99,7 @@ func CombineExample() {
 	callback := notify.TelegramCallback(tg, "BTC/USD")
 
 	// ============ SLTP Engine ============
-	manager := engine.New(engine.DefaultConfig())
+	manager := engine.New(engine.DefaultConfig(), kv)
 
 	// Fixed percentage stop loss.
 	percentStopStrategy, err := strategy.NewFixedPercentStop(

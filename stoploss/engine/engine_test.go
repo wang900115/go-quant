@@ -1,16 +1,18 @@
 package engine
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/wang900115/quant/model"
+	"github.com/wang900115/quant/storage"
 )
 
 func TestNew(t *testing.T) {
 	cfg := DefaultConfig()
-	e := New(cfg)
+	e := New(cfg, nil)
 	if e == nil {
 		t.Fatal("New returned nil")
 	}
@@ -42,6 +44,59 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.CheckInterval == 0 {
 		t.Error("CheckInterval should be non-zero")
 	}
+	if cfg.StatePersistInterval == 0 {
+		t.Error("StatePersistInterval should be non-zero")
+	}
+}
+
+type runtimeStateStore struct {
+	storage.KVStore
+	key   []byte
+	value []byte
+}
+
+func (s *runtimeStateStore) Put(key, value []byte) error {
+	s.key = append([]byte(nil), key...)
+	s.value = append([]byte(nil), value...)
+	return nil
+}
+
+func TestPersistRuntimeState(t *testing.T) {
+	store := &runtimeStateStore{}
+	e := New(DefaultConfig(), store)
+	if err := e.RegisterStrategy("test", &mockFixedSL{}); err != nil {
+		t.Fatalf("RegisterStrategy: %v", err)
+	}
+
+	e.persistRuntimeState(RuntimeStateRunning)
+
+	if got := string(store.key); got != RuntimeStateKey {
+		t.Fatalf("stored key = %q, want %q", got, RuntimeStateKey)
+	}
+	var state RuntimeState
+	if err := json.Unmarshal(store.value, &state); err != nil {
+		t.Fatalf("decode runtime state: %v", err)
+	}
+	if state.Status != RuntimeStateRunning {
+		t.Errorf("status = %q, want %q", state.Status, RuntimeStateRunning)
+	}
+	if state.StrategyCount != 1 {
+		t.Errorf("strategy count = %d, want 1", state.StrategyCount)
+	}
+	if state.UpdatedAt.IsZero() {
+		t.Error("updated_at should be set")
+	}
+	if state.Results == nil || state.Metrics == nil {
+		t.Error("results and metrics snapshots should be set")
+	}
+
+	e.Stop()
+	if err := json.Unmarshal(store.value, &state); err != nil {
+		t.Fatalf("decode stopped runtime state: %v", err)
+	}
+	if state.Status != RuntimeStateStopped {
+		t.Errorf("status = %q, want %q", state.Status, RuntimeStateStopped)
+	}
 }
 
 func TestRegisterStrategy_AllTypes(t *testing.T) {
@@ -60,7 +115,7 @@ func TestRegisterStrategy_AllTypes(t *testing.T) {
 		{"hybrid_debounced", &mockHybridDebounced{}},
 	}
 
-	e := New(cfg)
+	e := New(cfg, nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := e.RegisterStrategy(tt.name, tt.strategy); err != nil {
@@ -71,7 +126,7 @@ func TestRegisterStrategy_AllTypes(t *testing.T) {
 }
 
 func TestRegisterStrategy_Unknown(t *testing.T) {
-	e := New(DefaultConfig())
+	e := New(DefaultConfig(), nil)
 	err := e.RegisterStrategy("unknown", "not a strategy")
 	if err == nil {
 		t.Fatal("expected error for unsupported strategy type")
@@ -86,7 +141,7 @@ func TestCollect_DropOnFullChannel(t *testing.T) {
 	cfg.BufferSize = 1
 	cfg.BufferRSize = 1
 
-	e := New(cfg)
+	e := New(cfg, nil)
 	e.RegisterStrategy("s1", &mockFixedSL{})
 
 	// Fill the channel

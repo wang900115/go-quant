@@ -12,11 +12,15 @@ import (
 	"github.com/wang900115/quant/exchange/pyth"
 	"github.com/wang900115/quant/external"
 	"github.com/wang900115/quant/stoploss/engine"
+	"github.com/wang900115/quant/storage/redis"
 )
 
 type Config struct {
 	// Strategy configurations
 	Engine engine.Config
+
+	// Redis configuration
+	Redis redis.Config
 
 	// Exchange configurations
 	Binance  binance.BinanceConfig
@@ -63,7 +67,17 @@ func NewFromEnv() (*Config, error) {
 		}
 		c.Engine.CheckInterval = d
 	}
+	if v := os.Getenv("REDIS_DB"); v != "" {
+		db, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("REDIS_DB: %w", err)
+		}
+		c.Redis.DB = db
+	}
 
+	c.Redis.Addr = os.Getenv("REDIS_ADDR")
+	c.Redis.Password = os.Getenv("REDIS_PASSWORD")
+	c.Redis.HashKey = os.Getenv("REDIS_HASH_KEY")
 	c.Binance.APIKey = os.Getenv("BINANCE_API_KEY")
 	c.Binance.SecretKey = os.Getenv("BINANCE_SECRET")
 	c.Coinbase.APIKey = os.Getenv("COINBASE_API_KEY")
@@ -95,6 +109,12 @@ func (c *Config) Validate() error {
 func (c *Config) WithEngine(opt engine.Config) configOpts {
 	return func(c *Config) {
 		c.Engine = opt
+	}
+}
+
+func (c *Config) WithRedis(opt redis.Config) configOpts {
+	return func(c *Config) {
+		c.Redis = opt
 	}
 }
 

@@ -58,7 +58,7 @@ func StrategyUsage() {
 	}
 
 	// Create the manager instance
-	manager := engine.New(config)
+	manager := engine.New(config, nil)
 
 	// Entry price for all strategies
 	entryPrice := decimal.NewFromFloat(100.0)

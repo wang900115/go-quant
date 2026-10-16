@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/wang900115/quant/stoploss/engine"
+	"github.com/wang900115/quant/storage/redis"
 )
 
 func TestNew_Empty(t *testing.T) {
@@ -34,6 +35,35 @@ func TestNewFromEnv_EngineBufferSize(t *testing.T) {
 	}
 	if c.Engine.BufferSize != 1024 {
 		t.Errorf("Engine.BufferSize: want 1024, got %d", c.Engine.BufferSize)
+	}
+}
+
+func TestNewFromEnv_RedisConfig(t *testing.T) {
+	t.Setenv("REDIS_ADDR", "redis.example:6379")
+	t.Setenv("REDIS_PASSWORD", "test-password")
+	t.Setenv("REDIS_DB", "2")
+	t.Setenv("REDIS_HASH_KEY", "quant-cache")
+
+	c, err := NewFromEnv()
+	if err != nil {
+		t.Fatalf("NewFromEnv: %v", err)
+	}
+	want := redis.Config{
+		Addr:     "redis.example:6379",
+		Password: "test-password",
+		DB:       2,
+		HashKey:  "quant-cache",
+	}
+	if c.Redis != want {
+		t.Errorf("Redis config: want %+v, got %+v", want, c.Redis)
+	}
+}
+
+func TestNewFromEnv_InvalidRedisDB(t *testing.T) {
+	t.Setenv("REDIS_DB", "not-a-number")
+	_, err := NewFromEnv()
+	if err == nil {
+		t.Fatal("expected error for invalid REDIS_DB")
 	}
 }
 

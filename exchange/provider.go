@@ -15,10 +15,13 @@ package exchange
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 	"sync"
 
 	"github.com/wang900115/quant/model"
+	"github.com/wang900115/quant/storage"
 )
 
 var (
@@ -40,12 +43,18 @@ type Provider interface {
 }
 
 type Providers struct {
+	storage.KVStore
 	mu       sync.RWMutex
 	registry map[model.ExchangeId]Provider
 }
 
-func New() Providers {
+func New(kv ...storage.KVStore) Providers {
+	var store storage.KVStore
+	if len(kv) != 0 {
+		store = kv[0]
+	}
 	return Providers{
+		KVStore:  store,
 		registry: make(map[model.ExchangeId]Provider),
 	}
 }
@@ -69,7 +78,9 @@ func (p *Providers) GetPrice(ctx context.Context, pair model.QuotesPair) (*model
 	if !ok {
 		return nil, errMissingProvider
 	}
-	return provider.GetPrice(ctx, pair)
+	return cachedValue(p, PriceCacheKey(pair), func() (*model.PricePoint, error) {
+		return provider.GetPrice(ctx, pair)
+	})
 }
 
 func (p *Providers) GetKlines(ctx context.Context, pair model.QuotesPair, interval string, limit int) ([]model.PriceInterval, error) {
@@ -79,7 +90,9 @@ func (p *Providers) GetKlines(ctx context.Context, pair model.QuotesPair, interv
 	if !ok {
 		return nil, errMissingProvider
 	}
-	return provider.GetKlines(ctx, pair, interval, limit)
+	return cachedValue(p, KlinesCacheKey(pair, interval, limit), func() ([]model.PriceInterval, error) {
+		return provider.GetKlines(ctx, pair, interval, limit)
+	})
 }
 
 func (p *Providers) GetOrderBook(ctx context.Context, pair model.QuotesPair, limit int) (*model.OrderBook, error) {
@@ -89,7 +102,47 @@ func (p *Providers) GetOrderBook(ctx context.Context, pair model.QuotesPair, lim
 	if !ok {
 		return nil, errMissingProvider
 	}
-	return provider.GetOrderBook(ctx, pair, limit)
+	return cachedValue(p, OrderBookCacheKey(pair, limit), func() (*model.OrderBook, error) {
+		return provider.GetOrderBook(ctx, pair, limit)
+	})
+}
+
+func cachedValue[T any](p *Providers, key []byte, fetch func() (T, error)) (T, error) {
+	var zero T
+	if p.KVStore != nil {
+		exists, err := p.Has(key)
+		if err != nil {
+			log.Printf("exchange cache: check key %q: %v", key, err)
+		} else if exists {
+			data, err := p.Get(key)
+			if err != nil {
+				log.Printf("exchange cache: read key %q: %v", key, err)
+			} else {
+				var cached T
+				if err := json.Unmarshal(data, &cached); err != nil {
+					log.Printf("exchange cache: decode key %q: %v", key, err)
+				} else {
+					return cached, nil
+				}
+			}
+		}
+	}
+
+	value, err := fetch()
+	if err != nil {
+		return zero, err
+	}
+	if p.KVStore != nil {
+		data, err := json.Marshal(value)
+		if err != nil {
+			log.Printf("exchange cache: encode key %q: %v", key, err)
+			return value, nil
+		}
+		if err := p.Put(key, data); err != nil {
+			log.Printf("exchange cache: write key %q: %v", key, err)
+		}
+	}
+	return value, nil
 }
 
 func (p *Providers) SubscribeStream(pair model.QuotesPair, channel []string) error {
