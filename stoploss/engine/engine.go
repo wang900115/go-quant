@@ -77,10 +77,10 @@ type StrategyEngine struct {
 	Config    Config
 }
 
-func New(config Config, kv ...storage.KVStore) *StrategyEngine {
+func New(config Config, kv storage.KVStore) *StrategyEngine {
 	var store storage.KVStore
-	if len(kv) > 0 {
-		store = kv[0]
+	if kv != nil {
+		store = kv
 	}
 	return &StrategyEngine{
 		KVStore:   store,

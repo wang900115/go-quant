@@ -12,7 +12,7 @@ import (
 
 func TestNew(t *testing.T) {
 	cfg := DefaultConfig()
-	e := New(cfg)
+	e := New(cfg, nil)
 	if e == nil {
 		t.Fatal("New returned nil")
 	}
@@ -115,7 +115,7 @@ func TestRegisterStrategy_AllTypes(t *testing.T) {
 		{"hybrid_debounced", &mockHybridDebounced{}},
 	}
 
-	e := New(cfg)
+	e := New(cfg, nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := e.RegisterStrategy(tt.name, tt.strategy); err != nil {
@@ -126,7 +126,7 @@ func TestRegisterStrategy_AllTypes(t *testing.T) {
 }
 
 func TestRegisterStrategy_Unknown(t *testing.T) {
-	e := New(DefaultConfig())
+	e := New(DefaultConfig(), nil)
 	err := e.RegisterStrategy("unknown", "not a strategy")
 	if err == nil {
 		t.Fatal("expected error for unsupported strategy type")
@@ -141,7 +141,7 @@ func TestCollect_DropOnFullChannel(t *testing.T) {
 	cfg.BufferSize = 1
 	cfg.BufferRSize = 1
 
-	e := New(cfg)
+	e := New(cfg, nil)
 	e.RegisterStrategy("s1", &mockFixedSL{})
 
 	// Fill the channel
